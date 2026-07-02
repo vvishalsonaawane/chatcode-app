@@ -1,11 +1,23 @@
 <!DOCTYPE html>
 <html>
-<head><title>ChatCode Test</title></head>
+<head>
+<title>ChatCode</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+</head>
 <body>
-<h1>ChatCode Works!</h1>
-<p id="test">Loading...</p>
+<h1 id="status">Loading...</h1>
 <script>
-document.getElementById('test').textContent = 'JavaScript OK - ' + new Date().toLocaleTimeString();
+window.addEventListener('DOMContentLoaded', () => {
+  try {
+    if (typeof supabase !== 'undefined') {
+      document.getElementById('status').textContent = '✅ Supabase loaded!';
+    } else {
+      document.getElementById('status').textContent = '❌ Supabase NOT loaded';
+    }
+  } catch(e) {
+    document.getElementById('status').textContent = '❌ Error: ' + e.message;
+  }
+});
 </script>
 </body>
 </html>
