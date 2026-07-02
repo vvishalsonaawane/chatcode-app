@@ -938,7 +938,7 @@ function switchTab(type) {
   document.getElementById('tabPersonal').classList.toggle('active', type === 'personal');
   document.getElementById('tabGroup').classList.toggle('active', type === 'group');
   document.getElementById('nameFieldLabel').textContent = type === 'group' ? 'Group Name' : "Contact's Name";
-  document.getElementById('contactNameInput').placeholder = type === 'group' ? 'e.g. Family Group' : 'e.g. Alex';
+  document.getElementById("Contact's Name").placeholder = type === 'group' ? 'e.g. Family Group' : 'e.g. Alex';
   document.getElementById('modalTitleText').textContent = type === 'group' ? 'New Group' : 'New Chat';
   document.getElementById('roomCodeHint').textContent = type === 'group' ? '(Everyone uses the same code)' : '(Share this code with them only)';
   checkDuplicateRoom();
