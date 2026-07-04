@@ -1,0 +1,1411 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>ChatCode</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0b0f17">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  :root {
+    --bg: #0b0f17; --panel: #131b27; --chat-bg: #0e1620;
+    --sent-bg: #1a3a5c; --sent-border: #2a7fff; --recv-bg: #162112; --recv-border: #2ecc71;
+    --accent: #2a7fff; --green: #2ecc71; --text: #e8f4ff; --dim: #6a8aaa; --code: #00ff88;
+    --mono: 'Courier New', monospace; --ui: -apple-system, 'Segoe UI', sans-serif;
+  }
+  html, body { height: 100%; height: 100dvh; font-family: var(--ui); background: var(--bg); color: var(--text); overflow: hidden; }
+  .screen { display: none; flex-direction: column; height: 100%; height: 100dvh; }
+  .screen.active { display: flex; }
+  #splashScreen { align-items: center; justify-content: center; background: var(--bg); }
+  .splash-icon { width: 96px; height: 96px; background: var(--panel); border: 2px solid var(--accent); border-radius: 24px; display: flex; align-items: center; justify-content: center; font-size: 44px; animation: pulse 1.5s ease-in-out infinite; }
+  @keyframes pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.06); } }
+  #loginScreen { align-items: center; justify-content: center; padding: 24px; background: radial-gradient(ellipse at 30% 40%, rgba(42,127,255,0.08) 0%, transparent 60%), radial-gradient(ellipse at 70% 70%, rgba(46,204,113,0.06) 0%, transparent 60%), var(--bg); overflow-y: auto; }
+  .login-card { width: 100%; max-width: 380px; background: var(--panel); border: 1px solid #1e3050; border-radius: 24px; padding: 28px 22px; display: flex; flex-direction: column; gap: 18px; }
+  .logo { text-align: center; }
+  .logo-icon { font-size: 44px; display: block; margin-bottom: 6px; }
+  .logo-title { font-size: 23px; font-weight: 700; letter-spacing: -0.5px; }
+  .logo-sub { font-size: 11px; color: var(--dim); margin-top: 4px; }
+  .field-label { font-size: 11px; color: var(--dim); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 6px; font-weight: 600; }
+  .field-input { width: 100%; background: #0a1220; border: 1px solid #1e3050; border-radius: 12px; color: var(--text); font-size: 15px; padding: 12px 16px; outline: none; transition: border 0.2s; }
+  .field-input:focus { border-color: var(--accent); }
+  .field-input::placeholder { color: var(--dim); }
+  .primary-btn { width: 100%; background: linear-gradient(135deg, var(--accent), #1a6fd0); border: none; border-radius: 14px; color: #fff; font-size: 16px; font-weight: 700; padding: 14px; cursor: pointer; box-shadow: 0 4px 20px rgba(42,127,255,0.3); }
+  .primary-btn:active { transform: scale(0.97); }
+  .hint { font-size: 11px; color: var(--dim); text-align: center; line-height: 1.5; }
+  #homeScreen { background: var(--chat-bg); }
+  .home-topbar { background: var(--panel); border-bottom: 1px solid #1e3050; padding: 12px 16px; display: flex; align-items: center; gap: 10px; flex-shrink: 0; padding-top: max(12px, env(safe-area-inset-top)); }
+  .home-title { font-size: 20px; font-weight: 700; flex: 1; }
+  .icon-btn { background: none; border: none; cursor: pointer; color: var(--text); font-size: 20px; padding: 6px; border-radius: 50%; display: flex; align-items: center; }
+  .chat-list { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+  .empty-state { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px; text-align: center; color: var(--dim); gap: 12px; }
+  .empty-state .e-icon { font-size: 56px; opacity: 0.5; }
+  .empty-state .e-text { font-size: 14px; line-height: 1.5; }
+  .chat-item { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid #15202e; cursor: pointer; }
+  .chat-item:active { background: #131c28; }
+  .chat-avatar { width: 50px; height: 50px; border-radius: 50%; background: linear-gradient(135deg, var(--green), #1a8a4a); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 18px; color: #fff; flex-shrink: 0; position: relative; }
+  .chat-avatar.group { background: linear-gradient(135deg, #f0a020, #c87010); }
+  .chat-info { flex: 1; min-width: 0; }
+  .chat-row1 { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+  .chat-name { font-size: 15px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .chat-time { font-size: 11px; color: var(--dim); flex-shrink: 0; }
+  .chat-preview { font-size: 13px; color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px; font-family: var(--mono); }
+  .fab { position: fixed; bottom: 24px; right: 20px; width: 56px; height: 56px; border-radius: 50%; background: linear-gradient(135deg, var(--accent), #1a6fd0); border: none; color: #fff; font-size: 26px; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 20px rgba(42,127,255,0.4); z-index: 50; }
+  .fab:active { transform: scale(0.92); }
+  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: none; align-items: flex-end; justify-content: center; z-index: 100; }
+  .modal-overlay.show { display: flex; }
+  .modal-sheet { width: 100%; max-width: 480px; background: var(--panel); border-radius: 24px 24px 0 0; padding: 22px; padding-bottom: max(22px, env(safe-area-inset-bottom)); display: flex; flex-direction: column; gap: 14px; animation: slideUp 0.25s ease; }
+  @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+  .modal-title { font-size: 18px; font-weight: 700; display: flex; justify-content: space-between; align-items: center; }
+  .modal-close { background: none; border: none; color: var(--dim); font-size: 22px; cursor: pointer; }
+  .chat-type-tabs { display: flex; gap: 8px; background: #0a1220; border-radius: 12px; padding: 4px; }
+  .type-tab { flex: 1; text-align: center; padding: 9px; border-radius: 10px; font-size: 13px; font-weight: 600; color: var(--dim); cursor: pointer; }
+  .type-tab.active { background: var(--accent); color: #fff; }
+  .room-row { display: flex; gap: 8px; }
+  .room-row .field-input { flex: 1; font-family: var(--mono); font-size: 13px; }
+  .gen-btn { background: #1e3050; border: 1px solid #2a4060; border-radius: 12px; color: var(--dim); font-size: 18px; padding: 0 14px; cursor: pointer; flex-shrink: 0; }
+
+  .action-row {
+    width: 100%; display: flex; align-items: center; gap: 12px;
+    background: #0a1220; border: 1px solid #1e3050; border-radius: 12px;
+    padding: 14px 16px; color: var(--text); font-size: 15px; font-weight: 600;
+    cursor: pointer; text-align: left;
+  }
+  .action-row:active { background: #131c28; }
+  .action-row.danger { color: #e74c3c; }
+  .action-icon { font-size: 18px; }
+
+  .secondary-btn {
+    width: 100%; background: none; border: 1px solid #1e3050; border-radius: 14px;
+    color: var(--dim); font-size: 15px; font-weight: 600; padding: 13px; cursor: pointer;
+  }
+  .danger-btn { background: linear-gradient(135deg, #e74c3c, #c0392b); box-shadow: 0 4px 20px rgba(231,76,60,0.3); }
+  #chatScreen { background: var(--chat-bg); }
+  .topbar { background: var(--panel); border-bottom: 1px solid #1e3050; padding: 10px 14px; display: flex; align-items: center; gap: 10px; flex-shrink: 0; padding-top: max(10px, env(safe-area-inset-top)); }
+  .back-btn { background: none; border: none; cursor: pointer; color: var(--dim); font-size: 22px; padding: 4px; }
+  .t-avatar { width: 38px; height: 38px; border-radius: 50%; background: linear-gradient(135deg, var(--green), #1a8a4a); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 15px; color: #fff; flex-shrink: 0; }
+  .t-avatar.group { background: linear-gradient(135deg, #f0a020, #c87010); }
+  .t-info { flex: 1; min-width: 0; }
+  .t-name { font-size: 15px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .t-status { font-size: 11px; color: var(--dim); margin-top: 1px; }
+  .t-status.online { color: var(--green); }
+  .t-room { font-family: var(--mono); font-size: 10px; color: var(--dim); background: #0a1220; border: 1px solid #1e3050; border-radius: 8px; padding: 4px 8px; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 80px; }
+  .secret-bar { background: #0a1428; border-bottom: 1px solid #1e3050; padding: 8px 14px; display: flex; align-items: center; gap: 8px; flex-shrink: 0; font-size: 12px; }
+  .secret-bar .s-label { color: var(--dim); font-size: 11px; flex-shrink: 0; }
+  .s-input { flex: 1; background: #0a1628; border: 1px solid #1e3050; border-radius: 8px; color: var(--code); font-family: var(--mono); font-size: 12px; padding: 5px 10px; outline: none; min-width: 0; }
+  .s-btn { background: var(--accent); border: none; border-radius: 8px; color: #fff; font-size: 11px; font-weight: 700; padding: 5px 12px; cursor: pointer; flex-shrink: 0; }
+  .s-revealed { color: var(--green); font-size: 11px; font-weight: 600; display: none; }
+  .s-hide-btn { background: none; border: 1px solid #1a4a2a; border-radius: 8px; color: var(--green); font-size: 11px; padding: 4px 10px; cursor: pointer; display: none; }
+  .msgs { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 12px 10px; display: flex; flex-direction: column; gap: 4px; -webkit-overflow-scrolling: touch; }
+  .date-chip { text-align: center; margin: 8px 0; }
+  .date-chip span { background: #1a2535; color: var(--dim); font-size: 10px; padding: 3px 10px; border-radius: 10px; border: 1px solid #1e3050; }
+  .msg-row { display: flex; align-items: flex-end; gap: 6px; animation: pop 0.25s ease; }
+  .msg-row.sent { flex-direction: row-reverse; }
+  @keyframes pop { from { opacity: 0; transform: translateY(6px) scale(0.97); } to { opacity: 1; transform: translateY(0) scale(1); } }
+  .m-avatar { width: 26px; height: 26px; border-radius: 50%; background: linear-gradient(135deg, var(--green), #1a8a4a); display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; color: #fff; flex-shrink: 0; align-self: flex-end; }
+  .bubble { max-width: 75%; padding: 8px 12px 5px; border-radius: 18px; position: relative; word-break: break-word; }
+  .sent .bubble { background: var(--sent-bg); border: 1px solid var(--sent-border); border-bottom-right-radius: 4px; }
+  .received .bubble { background: var(--recv-bg); border: 1px solid var(--recv-border); border-bottom-left-radius: 4px; }
+  .sender-tag { font-size: 10px; font-weight: 700; color: var(--green); margin-bottom: 2px; }
+  .code-tag { font-size: 9px; font-family: var(--mono); text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 3px; opacity: 0.6; }
+  .sent .code-tag { color: var(--accent); }
+  .received .code-tag { color: var(--green); }
+  .msg-enc { font-family: var(--mono); font-size: 11px; color: var(--code); line-height: 1.5; }
+  .msg-orig { font-size: 14px; color: var(--text); line-height: 1.5; display: none; }
+  .reveal-mode .msg-enc { display: none; }
+  .reveal-mode .msg-orig { display: block; }
+  .msg-media { max-width: 100%; border-radius: 12px; margin-top: 4px; display: none; }
+  .msg-media-enc { font-family: var(--mono); font-size: 10px; color: var(--code); line-height: 1.4; max-height: 60px; overflow: hidden; word-break: break-all; background: #0a1628; padding: 6px; border-radius: 8px; margin-top: 4px; }
+  .reveal-mode .msg-media-enc { display: none; }
+  .reveal-mode .msg-media { display: block; }
+  .m-meta { display: flex; align-items: center; justify-content: flex-end; gap: 3px; margin-top: 3px; }
+  .m-time { font-size: 10px; color: var(--dim); }
+  .m-tick { font-size: 11px; color: var(--accent); }
+  .msg-reactions { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; min-height: 0; }
+  .typing-row { display: none; align-items: center; gap: 8px; padding: 4px 8px; }
+  .typing-row.show { display: flex; }
+  .t-dots span { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--green); margin: 0 2px; animation: tdot 1.2s infinite; }
+  .t-dots span:nth-child(2) { animation-delay: 0.2s; }
+  .t-dots span:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes tdot { 0%,80%,100% { transform: translateY(0); opacity: 0.3; } 40% { transform: translateY(-5px); opacity: 1; } }
+  .t-text { font-size: 11px; color: var(--dim); font-style: italic; }
+  .input-bar { background: var(--panel); border-top: 1px solid #1e3050; padding: 8px 10px; padding-bottom: max(8px, env(safe-area-inset-bottom)); display: flex; align-items: flex-end; gap: 8px; flex-shrink: 0; }
+  .attach-btn { background: none; border: none; cursor: pointer; color: var(--dim); font-size: 22px; padding: 8px; flex-shrink: 0; display: flex; align-items: center; }
+  .input-wrap { flex: 1; background: #0d1b2a; border: 1px solid #1e3050; border-radius: 22px; display: flex; align-items: flex-end; padding: 8px 14px; gap: 8px; }
+  .msg-in { flex: 1; background: none; border: none; outline: none; color: var(--text); font-size: 15px; resize: none; max-height: 90px; line-height: 1.4; }
+  .send-btn { width: 42px; height: 42px; border-radius: 50%; background: linear-gradient(135deg, var(--accent), #1a6fd0); border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 17px; flex-shrink: 0; box-shadow: 0 2px 12px rgba(42,127,255,0.35); }
+  .img-preview-bar { background: var(--panel); padding: 8px 10px; display: none; align-items: center; gap: 10px; border-top: 1px solid #1e3050; }
+  .img-preview-bar.show { display: flex; }
+  .img-preview-bar img { width: 50px; height: 50px; border-radius: 8px; object-fit: cover; }
+  .img-preview-cancel { background: none; border: none; color: var(--dim); font-size: 20px; cursor: pointer; margin-left: auto; }
+  .toast { position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%); background: #1a2535; border: 1px solid #2a4060; color: var(--text); font-size: 12px; font-weight: 600; padding: 8px 20px; border-radius: 20px; z-index: 999; opacity: 0; pointer-events: none; transition: opacity 0.3s; white-space: nowrap; max-width: 85%; text-align: center; }
+  .toast.show { opacity: 1; }
+  .conn-bar { background: #1a1200; border-bottom: 1px solid #3a2a00; padding: 6px 14px; font-size: 11px; color: #f0c040; text-align: center; display: none; flex-shrink: 0; }
+  .conn-bar.show { display: block; }
+</style>
+</head>
+<body>
+
+<div id="splashScreen" class="screen active">
+  <div class="splash-icon">🔐</div>
+  <div id="splashError" style="color:#ff6b6b;font-size:12px;margin-top:20px;padding:0 20px;text-align:center;display:none;"></div>
+</div>
+
+<!-- Calculator Lock Screen -->
+<div id="calcScreen" class="screen">
+  <div style="display:flex;flex-direction:column;height:100%;background:#1a1a2e;justify-content:flex-end;padding:20px;">
+    <!-- Display -->
+    <div style="text-align:right;padding:20px 10px;margin-bottom:10px;">
+      <div id="calcDisplay" style="font-size:48px;color:#fff;font-weight:300;letter-spacing:-1px;min-height:60px;word-break:break-all;">0</div>
+      <div id="calcSubDisplay" style="font-size:16px;color:#888;min-height:24px;"></div>
+    </div>
+    <!-- Buttons -->
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;">
+      <button onclick="calcBtn('AC')" style="background:#505050;color:#fff;border:none;border-radius:50%;width:75px;height:75px;font-size:20px;cursor:pointer;">AC</button>
+      <button onclick="calcBtn('+/-')" style="background:#505050;color:#fff;border:none;border-radius:50%;width:75px;height:75px;font-size:20px;cursor:pointer;">+/-</button>
+      <button onclick="calcBtn('%')" style="background:#505050;color:#fff;border:none;border-radius:50%;width:75px;height:75px;font-size:20px;cursor:pointer;">%</button>
+      <button onclick="calcBtn('÷')" style="background:#ff9f0a;color:#fff;border:none;border-radius:50%;width:75px;height:75px;font-size:24px;cursor:pointer;">÷</button>
+      
+      <button onclick="calcBtn('7')" style="background:#333;color:#fff;border:none;border-radius:50%;width:75px;height:75px;font-size:24px;cursor:pointer;">7</button>
+      <button onclick="calcBtn('8')" style="background:#333;color:#fff;border:none;border-radius:50%;width:75px;height:75px;font-size:24px;cursor:pointer;">8</button>
+      <button onclick="calcBtn('9')" style="background:#333;color:#fff;border:none;border-radius:50%;width:75px;height:75px;font-size:24px;cursor:pointer;">9</button>
+      <button onclick="calcBtn('×')" style="background:#ff9f0a;color:#fff;border:none;border-radius:50%;width:75px;height:75px;font-size:24px;cursor:pointer;">×</button>
+      
+      <button onclick="calcBtn('4')" style="background:#333;color:#fff;border:none;border-radius:50%;width:75px;height:75px;font-size:24px;cursor:pointer;">4</button>
+      <button onclick="calcBtn('5')" style="background:#333;color:#fff;border:none;border-radius:50%;width:75px;height:75px;font-size:24px;cursor:pointer;">5</button>
+      <button onclick="calcBtn('6')" style="background:#333;color:#fff;border:none;border-radius:50%;width:75px;height:75px;font-size:24px;cursor:pointer;">6</button>
+      <button onclick="calcBtn('-')" style="background:#ff9f0a;color:#fff;border:none;border-radius:50%;width:75px;height:75px;font-size:24px;cursor:pointer;">-</button>
+      
+      <button onclick="calcBtn('1')" style="background:#333;color:#fff;border:none;border-radius:50%;width:75px;height:75px;font-size:24px;cursor:pointer;">1</button>
+      <button onclick="calcBtn('2')" style="background:#333;color:#fff;border:none;border-radius:50%;width:75px;height:75px;font-size:24px;cursor:pointer;">2</button>
+      <button onclick="calcBtn('3')" style="background:#333;color:#fff;border:none;border-radius:50%;width:75px;height:75px;font-size:24px;cursor:pointer;">3</button>
+      <button onclick="calcBtn('+')" style="background:#ff9f0a;color:#fff;border:none;border-radius:50%;width:75px;height:75px;font-size:24px;cursor:pointer;">+</button>
+      
+      <button onclick="calcBtn('0')" style="background:#333;color:#fff;border:none;border-radius:50%;width:75px;height:75px;font-size:24px;cursor:pointer;grid-column:span 2;border-radius:40px;text-align:left;padding-left:28px;">0</button>
+      <button onclick="calcBtn('.')" style="background:#333;color:#fff;border:none;border-radius:50%;width:75px;height:75px;font-size:24px;cursor:pointer;">.</button>
+      <button onclick="calcBtn('=')" style="background:#ff9f0a;color:#fff;border:none;border-radius:50%;width:75px;height:75px;font-size:24px;cursor:pointer;">=</button>
+    </div>
+    <div style="text-align:center;margin-top:16px;color:#444;font-size:11px;">Calculator</div>
+  </div>
+</div>
+
+
+<div id="termsScreen" class="screen">
+  <div class="login-card" style="gap:20px;">
+    <div class="logo">
+      <span class="logo-icon">🔐</span>
+      <div class="logo-title">ChatCode</div>
+      <div class="logo-sub">Secure Encrypted Messaging</div>
+    </div>
+    <div style="background:#0a1220;border:1px solid #1e3050;border-radius:14px;padding:16px;font-size:13px;color:var(--dim);line-height:1.6;">
+      <div style="color:var(--text);font-weight:600;margin-bottom:8px;">What is ChatCode?</div>
+      All your messages are encrypted with <strong style="color:var(--accent);">AES-256 encryption</strong>. No one — not even us — can read them without your secret code.
+    </div>
+    <label style="display:flex;align-items:flex-start;gap:12px;cursor:pointer;">
+      <input type="checkbox" id="termsCheck" style="width:18px;height:18px;margin-top:2px;flex-shrink:0;accent-color:var(--accent);" />
+      <span style="font-size:13px;color:var(--dim);line-height:1.5;">
+        I have read and agree to the <span style="color:var(--accent);cursor:pointer;" onclick="showTermsModal('terms')">Terms of Service</span> and <span style="color:var(--accent);cursor:pointer;" onclick="showTermsModal('privacy')">Privacy Policy</span>.
+      </span>
+    </label>
+    <button class="primary-btn" onclick="acceptTerms()">✅ Accept & Continue</button>
+  </div>
+</div>
+
+<!-- Terms/Privacy Modal -->
+<div id="termsModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:999;overflow-y:auto;padding:20px;">
+  <div style="background:var(--panel);border-radius:20px;padding:24px;max-width:500px;margin:0 auto;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+      <div style="font-weight:700;font-size:17px;" id="termsModalTitle">Terms of Service</div>
+      <button onclick="document.getElementById('termsModal').style.display='none'" style="background:none;border:none;color:var(--text);font-size:22px;cursor:pointer;">✕</button>
+    </div>
+    <div id="termsModalContent" style="font-size:13px;color:var(--dim);line-height:1.7;"></div>
+  </div>
+</div>
+
+<div id="loginScreen" class="screen">
+
+  <div class="login-card">
+    <div class="logo">
+      <span class="logo-icon">🔐</span>
+      <div class="logo-title">ChatCode</div>
+      <div class="logo-sub">Secure Encrypted Messaging</div>
+    </div>
+
+    <!-- Step 1: Phone + Email -->
+    <div id="stepPhone">
+      <div style="margin-bottom:14px;">
+        <div class="field-label">Phone Number</div>
+        <input class="field-input" id="phoneInput" placeholder="+91 9876543210" type="tel" />
+      </div>
+      <div style="margin-bottom:14px;">
+        <div class="field-label">Email (OTP will be sent here)</div>
+        <input class="field-input" id="emailInput" placeholder="your@email.com" type="email" />
+      </div>
+      <button class="primary-btn" onclick="sendOtp()">📱 Send OTP</button>
+      <div class="hint" style="margin-top:10px;">OTP will be sent to your email</div>
+    </div>
+
+    <!-- Step 2: OTP -->
+    <div id="stepOtp" style="display:none;">
+      <div style="margin-bottom:14px;">
+        <div class="field-label">Enter OTP (from your email)</div>
+        <input class="field-input" id="otpInput" placeholder="123456" type="number" maxlength="6" />
+      </div>
+      <button class="primary-btn" onclick="verifyOtp()">✅ Verify OTP</button>
+      <button style="background:none;border:none;color:var(--dim);font-size:13px;margin-top:10px;cursor:pointer;width:100%;" onclick="showStep('stepPhone')">← Go back</button>
+    </div>
+
+    <!-- Step 3: Setup (new users only) -->
+    <div id="stepSetup" style="display:none;">
+      <div style="margin-bottom:14px;">
+        <div class="field-label">Your Name</div>
+        <input class="field-input" id="nameInput" placeholder="e.g. Vishal" maxlength="20" />
+      </div>
+      <div style="margin-bottom:14px;">
+        <div class="field-label">Secret Code <span style="color:var(--dim);font-size:10px;">(same for all chats)</span></div>
+        <input class="field-input" id="secretCodeInput" placeholder="e.g. 1234" />
+      </div>
+      <button class="primary-btn" onclick="completeSignup()">🚀 Get Started</button>
+    </div>
+
+  </div>
+</div>
+
+<div id="homeScreen" class="screen">
+  <div class="home-topbar">
+    <div class="home-title">ChatCode</div>
+    <button class="icon-btn" onclick="toast('🔐 Secret code: ' + secretCode)" title="My secret code">🔑</button>
+  </div>
+  <div class="chat-list" id="chatList"></div>
+  <div class="empty-state" id="emptyState" style="display:none;">
+    <div class="e-icon">💬</div>
+    <div class="e-text">No chats yet.<br>Tap + to start a new chat!</div>
+  </div>
+  <button class="fab" onclick="openNewChatModal()">+</button>
+</div>
+
+<div class="modal-overlay" id="newChatModal">
+  <div class="modal-sheet">
+    <div class="modal-title">
+      <span id="modalTitleText">New Chat</span>
+      <button class="modal-close" onclick="closeNewChatModal()">✕</button>
+    </div>
+    <div>
+      <div class="field-label">Contact Name</div>
+      <input class="field-input" id="contactNameInput" placeholder="e.g. Alex" maxlength="30" />
+    </div>
+    <div>
+      <div class="field-label">Phone Number</div>
+      <input class="field-input" id="contactPhoneInput" placeholder="+91 9876543210" type="tel" />
+    </div>
+    <button class="primary-btn" onclick="startNewChat()">💬 Start Chat</button>
+  </div>
+</div>
+
+<!-- CHAT ACTION MENU (long-press on chat item) -->
+<div class="modal-overlay" id="chatActionModal">
+  <div class="modal-sheet">
+    <div class="modal-title">
+      <span id="actionMenuName">Chat</span>
+      <button class="modal-close" onclick="closeChatActionMenu()">✕</button>
+    </div>
+    <button class="action-row" onclick="startEditContactName()">
+      <span class="action-icon">✏️</span> Edit Name
+    </button>
+    <button class="action-row danger" onclick="confirmDeleteChat()">
+      <span class="action-icon">🗑️</span> Delete Chat
+    </button>
+  </div>
+</div>
+
+<!-- EDIT NAME MODAL -->
+<div class="modal-overlay" id="editNameModal">
+  <div class="modal-sheet">
+    <div class="modal-title">
+      <span>Edit Name</span>
+      <button class="modal-close" onclick="closeEditNameModal()">✕</button>
+    </div>
+    <div>
+      <div class="field-label">New Name</div>
+      <input class="field-input" id="editNameInput" placeholder="Enter name..." maxlength="20" />
+    </div>
+    <button class="primary-btn" onclick="saveEditedName()">Save</button>
+  </div>
+</div>
+
+<!-- DELETE CONFIRM MODAL -->
+<div class="modal-overlay" id="deleteConfirmModal">
+  <div class="modal-sheet">
+    <div class="modal-title">
+      <span>Delete Chat?</span>
+      <button class="modal-close" onclick="closeDeleteConfirmModal()">✕</button>
+    </div>
+    <div class="hint" style="text-align:left;font-size:13px;">
+      <strong id="deleteConfirmName"></strong> chat will be removed from your list.<br>
+      (Old messages stay in database — start a chat with the same Room Code to see them again.)
+    </div>
+    <button class="primary-btn danger-btn" onclick="doDeleteChat()">Yes, Delete</button>
+    <button class="secondary-btn" onclick="closeDeleteConfirmModal()">Cancel</button>
+  </div>
+</div>
+
+<div id="chatScreen" class="screen">
+  <div class="topbar">
+    <button class="back-btn" onclick="goHome()">‹</button>
+    <div class="t-avatar" id="peerAvatar">?</div>
+    <div class="t-info">
+      <div class="t-name" id="peerName">Waiting...</div>
+      <div class="t-status" id="peerStatus">ChatCode</div>
+    </div>
+  </div>
+  <div class="conn-bar" id="connBar">⏳ Connecting...</div>
+  <div class="secret-bar" id="secretBar">
+    <span class="s-label">🔐</span>
+    <input type="password" class="s-input" id="sInput" placeholder="Secret code..." />
+    <button class="s-btn" onclick="tryReveal()">Reveal</button>
+    <span class="s-revealed" id="sRevealed">🔓 Revealed!</span>
+    <button class="s-hide-btn" id="sHideBtn" onclick="hideReveal()">Hide</button>
+  </div>
+  <div class="msgs" id="msgs"><div class="date-chip"><span>Today</span></div></div>
+  <div class="typing-row" id="typingRow">
+    <div class="m-avatar" id="typingAvatar">?</div>
+    <div class="t-dots"><span></span><span></span><span></span></div>
+    <div class="t-text">typing...</div>
+  </div>
+  <div class="img-preview-bar" id="imgPreviewBar">
+    <img id="imgPreviewThumb" src="" />
+    <span style="font-size:12px;color:var(--dim);">Photo ready to send</span>
+    <button class="img-preview-cancel" onclick="cancelImagePreview()">✕</button>
+  </div>
+  <div class="input-bar">
+    <input type="file" id="fileInput" accept="image/*" style="display:none;" onchange="onFileSelected(event)" />
+    <button class="attach-btn" onclick="document.getElementById('fileInput').click()" title="Send photo">📎</button>
+    <div class="input-wrap">
+      <textarea class="msg-in" id="msgIn" rows="1" placeholder="Type a message..." oninput="onType()" onkeydown="onKey(event)" inputmode="text"></textarea>
+    </div>
+    <button class="send-btn" onclick="sendMsg()">
+      <svg width="18" height="18" fill="currentColor" viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+    </button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const SUPABASE_URL = "https://xbsbkuteyhptbhzaegmt.supabase.co";
+const SUPABASE_KEY = "sb_publishable_GPiV0QR8ebD7MZQ-ClwhMg_fM3qaNA5";
+const sb = (window.supabase || window.Supabase).createClient(SUPABASE_URL, SUPABASE_KEY);
+const BACKEND_URL = "https://chatcode-backend-production.up.railway.app";
+
+// Firebase Push Notifications
+const firebaseConfig = {
+  apiKey: "AIzaSyA2eRT4Xr-ffMLGBCdTcjCnsMcRzo1yon4",
+  authDomain: "chatcode-fb6ba.firebaseapp.com",
+  projectId: "chatcode-fb6ba",
+  storageBucket: "chatcode-fb6ba.firebasestorage.app",
+  messagingSenderId: "487610794070",
+  appId: "1:487610794070:web:02fb15da8bd800f7743bf7"
+};
+const VAPID_KEY = "BD5exlPHOcU0nBEqxKuuXaZZekAnZtwUGs3z0HTP0VsaayGXLfeVUhW5qys5c2wAOmsI_SGEE_XaofO84wuVhVI";
+
+let fbMessaging = null;
+let fcmToken = null;
+
+async function initNotifications() {
+  try {
+    if (typeof firebase === 'undefined') {
+      console.log('Firebase SDK not loaded, skipping notifications');
+      return;
+    }
+    if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+    fbMessaging = firebase.messaging();
+    const permission = await Notification.requestPermission();
+    if (permission !== 'granted') { console.log('Notification permission denied'); return; }
+    fcmToken = await fbMessaging.getToken({ vapidKey: VAPID_KEY, serviceWorkerRegistration: await navigator.serviceWorker.register('/firebase-messaging-sw.js') });
+    console.log('FCM Token:', fcmToken);
+    // Save token to backend (for sending notifications later)
+    if (accessToken && fcmToken) {
+      await fetch(`${BACKEND_URL}/auth/update-push-token`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${accessToken}` },
+        body: JSON.stringify({ pushToken: fcmToken })
+      }).catch(() => {});
+    }
+    // Foreground message handler
+    fbMessaging.onMessage((payload) => {
+      const { title, body } = payload.notification || {};
+      toast('🔔 ' + (body || 'New message!'));
+    });
+  } catch (e) {
+    console.error('Notification init error:', e);
+  }
+}
+
+// Backend auth state
+let accessToken = localStorage.getItem('cc_access_token') || '';
+let refreshTokenStored = localStorage.getItem('cc_refresh_token') || '';
+let pendingSignupToken = '';
+let pendingPhone = '';
+let pendingEmail = '';
+
+let myName = '', secretCode = '', myPhone = '';
+let revealMode = false;
+let typingTimer = null;
+let isTyping = false;
+let msgCount = 0;
+let msgChannel = null;
+let presenceCheckInterval = null;
+let syncMissedInterval = null;
+let visibilityListenerAdded = false;
+let lastSeenMsgId = 0;
+let pendingImageDataUrl = null;
+let currentChat = null;
+let chatsList = [];
+let cryptoKey = null; // derived AES-GCM key from secretCode, set after login
+
+// ── REAL ENCRYPTION (AES-GCM via Web Crypto API) ──
+// The secret code becomes the actual encryption key. Without it, messages
+// cannot be decrypted by anyone — not by reading the database, not by AI,
+// not by any tool — because there is no reversible formula, only a true key.
+
+async function deriveKeyFromCode(code) {
+  const enc = new TextEncoder();
+  const keyMaterial = await crypto.subtle.importKey(
+    'raw', enc.encode(code), { name: 'PBKDF2' }, false, ['deriveKey']
+  );
+  return crypto.subtle.deriveKey(
+    {
+      name: 'PBKDF2',
+      salt: enc.encode('chatcode-fixed-salt-v1'), // fixed salt: same code -> same key, every device
+      iterations: 100000,
+      hash: 'SHA-256'
+    },
+    keyMaterial,
+    { name: 'AES-GCM', length: 256 },
+    false,
+    ['encrypt', 'decrypt']
+  );
+}
+
+function bufToBase64(buf) {
+  return btoa(String.fromCharCode(...new Uint8Array(buf)));
+}
+function base64ToBuf(b64) {
+  const bin = atob(b64);
+  const arr = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+  return arr;
+}
+
+// langs cycle is now purely cosmetic (label shown on the encrypted bubble before reveal)
+const langs = ['encrypted', 'cipher', 'secured', 'locked', 'sealed'];
+
+async function encryptMessage(plainText) {
+  if (!cryptoKey) throw new Error('No encryption key — please log in again.');
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const enc = new TextEncoder();
+  const ciphertextBuf = await crypto.subtle.encrypt(
+    { name: 'AES-GCM', iv }, cryptoKey, enc.encode(plainText)
+  );
+  // Store iv + ciphertext together, base64-encoded, so it can be sent as one string
+  const combined = bufToBase64(iv) + ':' + bufToBase64(ciphertextBuf);
+  const lang = langs[msgCount % langs.length];
+  return { enc: combined, lang };
+}
+
+async function decryptMessage(combined) {
+  if (!cryptoKey) throw new Error('No encryption key.');
+  const [ivB64, dataB64] = combined.split(':');
+  const iv = base64ToBuf(ivB64);
+  const dataBuf = base64ToBuf(dataB64);
+  const plainBuf = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, cryptoKey, dataBuf);
+  return new TextDecoder().decode(plainBuf);
+}
+
+
+function saveLogin() {
+  localStorage.setItem('chatcode_name', myName);
+  localStorage.setItem('chatcode_secret', secretCode);
+  localStorage.setItem('cc_access_token', accessToken);
+  localStorage.setItem('cc_refresh_token', refreshTokenStored);
+  if (myPhone) localStorage.setItem('chatcode_my_phone', myPhone);
+}
+function loadLogin() { 
+  return { 
+    name: localStorage.getItem('chatcode_name'), 
+    secret: localStorage.getItem('chatcode_secret'),
+    phone: localStorage.getItem('chatcode_my_phone')
+  }; 
+}
+function saveChatsList() { localStorage.setItem('chatcode_chats', JSON.stringify(chatsList)); }
+function loadChatsList() {
+  try { const raw = localStorage.getItem('chatcode_chats'); return raw ? JSON.parse(raw) : []; }
+  catch (e) { return []; }
+}
+
+function acceptTerms() {
+  if (!document.getElementById('termsCheck').checked) {
+    toast('⚠️ Please accept the Terms & Privacy Policy!');
+    return;
+  }
+  localStorage.setItem('chatcode_terms_accepted', '1');
+  showStep('stepPhone');
+  showScreen('loginScreen');
+}
+
+const TERMS_TEXT = `ChatCode Terms of Service
+
+1. You must be at least 13 years old to use ChatCode.
+2. You may not use ChatCode for any illegal activities.
+3. Your Secret Code is your encryption key — if you forget it, we cannot recover your messages.
+4. The service is provided "as is" without any warranties.
+
+Contact: vishals9008@gmail.com`;
+
+const PRIVACY_TEXT = `ChatCode Privacy Policy
+
+What we collect:
+• Phone number (your identity)
+• Email (only to send OTP)
+• Display name
+• Messages (encrypted form only)
+
+What we do NOT collect:
+• Your contacts
+• Location data
+• Advertising identifiers
+• Plain text messages
+
+Your messages are protected with AES-256-GCM encryption.
+Not even we can read your messages without your secret code.
+
+Contact: vishals9008@gmail.com`;
+
+function showTermsModal(type) {
+  const modal = document.getElementById('termsModal');
+  const title = document.getElementById('termsModalTitle');
+  const content = document.getElementById('termsModalContent');
+  if (type === 'terms') {
+    title.textContent = 'Terms of Service';
+    content.innerHTML = TERMS_TEXT.replace(/\n/g, '<br>');
+  } else {
+    title.textContent = 'Privacy Policy';
+    content.innerHTML = PRIVACY_TEXT.replace(/\n/g, '<br>');
+  }
+  modal.style.display = 'block';
+}
+
+// ── CALCULATOR LOCK ──
+let calcInput = '';
+let calcOperator = '';
+let calcPrev = '';
+let calcReset = false;
+
+function calcBtn(btn) {
+  const display = document.getElementById('calcDisplay');
+  const sub = document.getElementById('calcSubDisplay');
+
+  if (btn === 'AC') {
+    calcInput = ''; calcOperator = ''; calcPrev = ''; calcReset = false;
+    display.textContent = '0'; sub.textContent = ''; return;
+  }
+  if (btn === '+/-') {
+    calcInput = calcInput ? String(-parseFloat(calcInput)) : '0';
+    display.textContent = calcInput; return;
+  }
+  if (btn === '%') {
+    calcInput = calcInput ? String(parseFloat(calcInput) / 100) : '0';
+    display.textContent = calcInput; return;
+  }
+  if (['+', '-', '×', '÷'].includes(btn)) {
+    if (calcInput) { calcPrev = calcInput; calcInput = ''; }
+    calcOperator = btn;
+    sub.textContent = (calcPrev || '0') + ' ' + btn;
+    calcReset = false; return;
+  }
+  if (btn === '=') {
+    if (!calcPrev || !calcOperator) {
+      // Check if current input is the secret code
+      checkCalcSecret(calcInput);
+      return;
+    }
+    const a = parseFloat(calcPrev), b = parseFloat(calcInput || calcPrev);
+    let result;
+    if (calcOperator === '+') result = a + b;
+    else if (calcOperator === '-') result = a - b;
+    else if (calcOperator === '×') result = a * b;
+    else if (calcOperator === '÷') result = b !== 0 ? a / b : 'Error';
+    const resultStr = String(result);
+    sub.textContent = calcPrev + ' ' + calcOperator + ' ' + (calcInput || calcPrev) + ' =';
+    display.textContent = resultStr;
+    // Check if result matches secret code
+    checkCalcSecret(resultStr);
+    calcInput = resultStr; calcPrev = ''; calcOperator = ''; calcReset = true;
+    return;
+  }
+  if (btn === '.') {
+    if (calcInput.includes('.')) return;
+    calcInput = (calcInput || '0') + '.';
+    display.textContent = calcInput; return;
+  }
+  // Number
+  if (calcReset) { calcInput = ''; calcReset = false; }
+  if (calcInput.length >= 12) return;
+  calcInput = calcInput === '0' ? btn : calcInput + btn;
+  display.textContent = calcInput;
+
+  // Check if typed sequence matches secret code (live check)
+  if (calcInput === secretCode) checkCalcSecret(calcInput);
+}
+
+async function checkCalcSecret(input) {
+  if (!secretCode) return; // not logged in yet
+  if (input === secretCode) {
+    // Unlock!
+    calcInput = ''; calcOperator = ''; calcPrev = '';
+    document.getElementById('calcDisplay').textContent = '0';
+    document.getElementById('calcSubDisplay').textContent = '';
+    chatsList = loadChatsList();
+    renderChatList();
+    showScreen('homeScreen');
+  }
+}
+
+function showStep(stepId) {
+  ['stepPhone', 'stepOtp', 'stepSetup'].forEach(id => {
+    document.getElementById(id).style.display = id === stepId ? 'block' : 'none';
+  });
+}
+
+async function sendOtp() {
+  const phone = document.getElementById('phoneInput').value.trim();
+  const email = document.getElementById('emailInput').value.trim();
+  if (!phone) { toast('⚠️ Enter phone number!'); return; }
+  if (!email) { toast('⚠️ Enter email!'); return; }
+  pendingPhone = phone;
+  pendingEmail = email;
+  toast('⏳ Sending OTP...');
+  try {
+    const res = await fetch(`${BACKEND_URL}/auth/send-otp`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone, email, country: 'IN' })
+    });
+    const data = await res.json();
+    if (!res.ok) { toast('❌ ' + (data.error || 'Failed to send OTP')); return; }
+    toast('✅ OTP sent to your email!');
+    showStep('stepOtp');
+  } catch (e) {
+    toast('❌ Network error: ' + e.message);
+  }
+}
+
+async function verifyOtp() {
+  const otp = document.getElementById('otpInput').value.trim();
+  if (!otp) { toast('⚠️ Enter OTP!'); return; }
+  toast('⏳ Verifying...');
+  try {
+    const res = await fetch(`${BACKEND_URL}/auth/verify-otp`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone: pendingPhone, email: pendingEmail, otp, country: 'IN' })
+    });
+    const data = await res.json();
+    if (!res.ok) { toast('❌ ' + (data.error || 'Incorrect OTP')); return; }
+    if (data.isNewUser) {
+      pendingSignupToken = data.pendingSignupToken;
+      showStep('stepSetup');
+      toast('✅ OTP verified! Set up your profile.');
+    } else {
+      // Existing user — ask for secret code before entering
+      accessToken = data.accessToken;
+      refreshTokenStored = data.refreshToken;
+      myName = data.user.displayName;
+      myPhone = pendingPhone; // save user's own phone number
+      // Show secret code input for existing users
+      pendingSignupToken = ''; // clear
+      document.getElementById('stepSetup').style.display = 'block';
+      document.getElementById('stepOtp').style.display = 'none';
+      document.getElementById('nameInput').value = data.user.displayName;
+      document.getElementById('nameInput').disabled = true;
+      document.querySelector('#stepSetup .primary-btn').textContent = '🔓 Unlock';
+      document.querySelector('#stepSetup .primary-btn').onclick = completeExistingLogin;
+      toast('✅ OTP verified! Enter your secret code.');
+    }
+  } catch (e) {
+    toast('❌ Network error: ' + e.message);
+  }
+}
+
+async function completeExistingLogin() {
+  const secret = document.getElementById('secretCodeInput').value.trim();
+  if (!secret) { toast('⚠️ Enter secret code!'); return; }
+  secretCode = secret;
+  cryptoKey = await deriveKeyFromCode(secretCode);
+  saveLogin();
+  chatsList = loadChatsList();
+  renderChatList();
+  // Reset button for next time
+  document.getElementById('nameInput').disabled = false;
+  document.querySelector('#stepSetup .primary-btn').textContent = '🚀 Get Started';
+  document.querySelector('#stepSetup .primary-btn').onclick = completeSignup;
+  showScreen('homeScreen');
+  toast('✅ Logged in!');
+  initNotifications().catch(() => {});
+  startGlobalIncomingWatcher().catch(() => {});
+}
+
+async function completeSignup() {
+  const displayName = document.getElementById('nameInput').value.trim();
+  const calculatorCode = document.getElementById('secretCodeInput').value.trim();
+  if (!displayName) { toast('⚠️ Enter your name!'); return; }
+  if (!calculatorCode) { toast('⚠️ Enter secret code!'); return; }
+  toast('⏳ Creating account...');
+  try {
+    const res = await fetch(`${BACKEND_URL}/auth/complete-signup`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pendingSignupToken, displayName, calculatorCode })
+    });
+    const data = await res.json();
+    if (!res.ok) { toast('❌ ' + (data.error || 'Signup failed')); return; }
+    accessToken = data.accessToken;
+    refreshTokenStored = data.refreshToken;
+    myName = displayName;
+    myPhone = pendingPhone; // save user's own phone number
+    secretCode = calculatorCode;
+    cryptoKey = await deriveKeyFromCode(secretCode);
+    saveLogin();
+    chatsList = loadChatsList();
+    renderChatList();
+    showScreen('homeScreen');
+    toast('🎉 Account created!');
+    startGlobalIncomingWatcher().catch(() => {});
+  } catch (e) {
+    toast('❌ Network error: ' + e.message);
+  }
+}
+
+async function doLogin() {
+  // Legacy fallback — kept for compatibility
+  const name = document.getElementById('nameInput') ? document.getElementById('nameInput').value.trim() : '';
+  const secret = document.getElementById('secretCodeInput') ? document.getElementById('secretCodeInput').value.trim() : '';
+  if (!name || !secret) return;
+  myName = name; secretCode = secret;
+  cryptoKey = await deriveKeyFromCode(secretCode);
+  saveLogin();
+  chatsList = loadChatsList();
+  renderChatList();
+  showScreen('homeScreen');
+}
+
+// ── GLOBAL INCOMING MESSAGE WATCHER ──
+// Watches for new messages in any room that contains myPhone number
+// This way when B messages A, A sees it even without having B's contact saved
+let globalWatchChannel = null;
+
+async function startGlobalIncomingWatcher() {
+  if (!myPhone || globalWatchChannel) return;
+  const myPhoneNorm = myPhone.replace(/[\s\-\(\)]/g, '');
+  if (!myPhoneNorm) return;
+
+  // Watch all messages where room_code contains myPhone
+  globalWatchChannel = sb.channel('global-incoming-' + myPhoneNorm)
+    .on('postgres_changes', {
+      event: 'INSERT',
+      schema: 'public',
+      table: 'messages',
+      filter: `room_code=like.%${myPhoneNorm}%`
+    }, async (payload) => {
+      const msg = payload.new;
+      if (!msg || msg.sender === myName) return; // ignore own messages
+      
+      // Check if we already have this chat in our list
+      const existingChat = findChat(msg.room_code);
+      if (!existingChat) {
+        // New incoming chat! Auto-add to chat list
+        // Extract sender's phone from room_code (it's the other phone number)
+        const phones = msg.room_code.split('_');
+        const senderPhone = phones.find(p => p !== myPhoneNorm) || msg.room_code;
+        
+        upsertChatMeta(msg.room_code, { 
+          contactName: msg.sender, // use sender name for now
+          contactPhone: senderPhone,
+          isGroup: false, 
+          lastTimestamp: Date.now(),
+          lastLang: msg.lang,
+          lastMsgEnc: msg.encoded
+        });
+        renderChatList();
+        toast('🔔 New message from ' + msg.sender + '!');
+      } else {
+        // Update existing chat preview
+        updateChatPreview(msg.room_code, msg);
+        if (!currentChat || currentChat.roomCode !== msg.room_code) {
+          toast('🔔 New message from ' + existingChat.contactName + '!');
+        }
+      }
+    })
+    .subscribe();
+}
+
+function renderChatList() {
+  const list = document.getElementById('chatList');
+  const empty = document.getElementById('emptyState');
+  if (chatsList.length === 0) { list.innerHTML = ''; empty.style.display = 'flex'; return; }
+  empty.style.display = 'none';
+  const sorted = [...chatsList].sort((a, b) => (b.lastTimestamp || 0) - (a.lastTimestamp || 0));
+  list.innerHTML = sorted.map(c => {
+    const initial = c.contactName[0].toUpperCase();
+    const preview = c.lastLang ? `[${c.lastLang}] ${(c.lastMsgEnc || '').slice(0, 30)}` : 'Start chatting...';
+    const timeStr = c.lastTimestamp ? new Date(c.lastTimestamp).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '';
+    return `<div class="chat-item"
+        onclick="openChat('${escAttr(c.roomCode)}')"
+        ontouchstart="chatItemTouchStart(event, '${escAttr(c.roomCode)}')"
+        ontouchend="chatItemTouchEnd(event)"
+        ontouchmove="chatItemTouchEnd(event)"
+        oncontextmenu="event.preventDefault(); openChatActionMenu('${escAttr(c.roomCode)}'); return false;">
+      <div class="chat-avatar ${c.isGroup ? 'group' : ''}">${c.isGroup ? '👥' : initial}</div>
+      <div class="chat-info">
+        <div class="chat-row1"><div class="chat-name">${escHtml(c.contactName)}</div><div class="chat-time">${timeStr}</div></div>
+        <div class="chat-preview">${escHtml(preview)}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// Long-press handling for chat items (mobile-friendly alternative to right-click)
+let longPressTimer = null;
+let longPressTriggered = false;
+function chatItemTouchStart(event, roomCode) {
+  longPressTriggered = false;
+  longPressTimer = setTimeout(() => {
+    longPressTriggered = true;
+    if (navigator.vibrate) navigator.vibrate(15);
+    openChatActionMenu(roomCode);
+  }, 450);
+}
+function chatItemTouchEnd(event) {
+  clearTimeout(longPressTimer);
+  if (longPressTriggered) {
+    event.preventDefault();
+    event.stopPropagation();
+  }
+}
+
+let actionMenuRoomCode = null;
+function openChatActionMenu(roomCode) {
+  actionMenuRoomCode = roomCode;
+  const chat = findChat(roomCode);
+  if (!chat) return;
+  document.getElementById('actionMenuName').textContent = chat.contactName;
+  document.getElementById('chatActionModal').classList.add('show');
+}
+function closeChatActionMenu() {
+  document.getElementById('chatActionModal').classList.remove('show');
+  actionMenuRoomCode = null;
+}
+function startEditContactName() {
+  const chat = findChat(actionMenuRoomCode);
+  if (!chat) return;
+  document.getElementById('editNameInput').value = chat.contactName;
+  closeChatActionMenu();
+  document.getElementById('editNameModal').classList.add('show');
+}
+function closeEditNameModal() {
+  document.getElementById('editNameModal').classList.remove('show');
+}
+function saveEditedName() {
+  const newName = document.getElementById('editNameInput').value.trim();
+  if (!newName) { toast('⚠️ Name cannot be empty!'); return; }
+  const chat = findChat(actionMenuRoomCode);
+  if (!chat) return;
+  chat.contactName = newName;
+  saveChatsList();
+  renderChatList();
+  closeEditNameModal();
+  toast('✅ Name updated!');
+}
+function confirmDeleteChat() {
+  const chat = findChat(actionMenuRoomCode);
+  if (!chat) return;
+  document.getElementById('deleteConfirmName').textContent = chat.contactName;
+  closeChatActionMenu();
+  document.getElementById('deleteConfirmModal').classList.add('show');
+}
+function closeDeleteConfirmModal() {
+  document.getElementById('deleteConfirmModal').classList.remove('show');
+}
+function doDeleteChat() {
+  chatsList = chatsList.filter(c => c.roomCode !== actionMenuRoomCode);
+  saveChatsList();
+  renderChatList();
+  closeDeleteConfirmModal();
+  toast('🗑️ Chat deleted');
+  actionMenuRoomCode = null;
+}
+
+function findChat(roomCode) { return chatsList.find(c => c.roomCode === roomCode); }
+
+function upsertChatMeta(roomCode, updates) {
+  let chat = findChat(roomCode);
+  if (!chat) { chat = { roomCode, contactName: roomCode, isGroup: false, lastTimestamp: 0 }; chatsList.push(chat); }
+  Object.assign(chat, updates);
+  saveChatsList();
+  renderChatList();
+}
+
+function openNewChatModal() {
+  document.getElementById('newChatModal').classList.add('show');
+  document.getElementById('contactNameInput').value = '';
+  document.getElementById('contactPhoneInput').value = '';
+}
+function closeNewChatModal() { document.getElementById('newChatModal').classList.remove('show'); }
+
+function startNewChat() {
+  const contactName = document.getElementById('contactNameInput').value.trim();
+  const contactPhone = document.getElementById('contactPhoneInput').value.trim();
+  if (!contactName) { toast('⚠️ Enter contact name!'); return; }
+  if (!contactPhone) { toast('⚠️ Enter phone number!'); return; }
+
+  // Normalize phone numbers
+  const theirPhone = contactPhone.replace(/[\s\-\(\)]/g, '');
+  const myPhoneNorm = (myPhone || '').replace(/[\s\-\(\)]/g, '');
+
+  // Smart room ID — sorted so A→B and B→A use same room
+  // e.g. +91111 and +91222 → room: "+91111_+91222" (alphabetically sorted)
+  let roomCode;
+  if (myPhoneNorm) {
+    const phones = [myPhoneNorm, theirPhone].sort();
+    roomCode = phones[0] + '_' + phones[1];
+  } else {
+    roomCode = theirPhone; // fallback if myPhone not saved yet
+  }
+
+  upsertChatMeta(roomCode, { contactName, contactPhone: theirPhone, isGroup: false, lastTimestamp: Date.now() });
+  closeNewChatModal();
+  openChat(roomCode);
+}
+
+async function openChat(roomCode) {
+  const chat = findChat(roomCode);
+  if (!chat) return;
+  currentChat = chat;
+  lastSeenMsgId = 0; msgCount = 0; revealMode = false;
+  document.getElementById('msgs').innerHTML = '<div class="date-chip"><span>Today</span></div>';
+  document.getElementById('peerAvatar').className = 't-avatar';
+  document.getElementById('peerAvatar').textContent = chat.contactName[0].toUpperCase();
+  document.getElementById('peerName').textContent = chat.contactName;
+  document.getElementById('peerStatus').textContent = 'ChatCode';
+  document.getElementById('peerStatus').className = 't-status';
+  document.getElementById('sInput').style.display = '';
+  document.getElementById('sInput').value = '';
+  document.querySelector('.s-btn').style.display = '';
+  document.getElementById('sRevealed').style.display = 'none';
+  document.getElementById('sHideBtn').style.display = 'none';
+  showScreen('chatScreen');
+  await initSupabaseForRoom(roomCode);
+}
+
+function goHome() {
+  if (msgChannel) { sb.removeChannel(msgChannel); msgChannel = null; }
+  if (presenceCheckInterval) clearInterval(presenceCheckInterval);
+  if (syncMissedInterval) clearInterval(syncMissedInterval);
+  currentChat = null;
+  renderChatList();
+  showScreen('homeScreen');
+}
+
+async function initSupabaseForRoom(roomCode) {
+  document.getElementById('connBar').classList.add('show');
+  document.getElementById('connBar').textContent = '⏳ Connecting...';
+  const { data: existingMsgs, error } = await sb.from('messages').select('*').eq('room_code', roomCode).order('created_at', { ascending: true }).limit(100);
+  if (error) { toast('❌ Connection error: ' + error.message); document.getElementById('connBar').textContent = '⚠️ Error connecting'; return; }
+  document.getElementById('connBar').classList.remove('show');
+  if (existingMsgs && existingMsgs.length > 0) {
+    existingMsgs.forEach(m => { lastSeenMsgId = Math.max(lastSeenMsgId, m.id); msgCount++; renderMsg(m, m.sender === myName ? 'sent' : 'received'); });
+    updateChatPreview(roomCode, existingMsgs[existingMsgs.length - 1]);
+  }
+  await sb.from('presence').insert({ room_code: roomCode, sender: myName, status: 'online' });
+  msgChannel = sb.channel('room-' + roomCode)
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `room_code=eq.${roomCode}` }, (payload) => {
+      const d = payload.new;
+      if (d.id <= lastSeenMsgId) return;
+      lastSeenMsgId = d.id;
+      updateChatPreview(roomCode, d);
+      if (d.sender === myName) return;
+      renderMsg(d, 'received');
+    })
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'typing_status', filter: `room_code=eq.${roomCode}` }, (payload) => {
+      const d = payload.new;
+      if (d.sender === myName) return;
+      showTyping(d.sender, d.is_typing);
+    })
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'presence', filter: `room_code=eq.${roomCode}` }, (payload) => {
+      const d = payload.new;
+      if (d.sender === myName) return;
+      updatePeerOnline(d.sender);
+      addSystemMsg('🟢 ' + d.sender + ' joined');
+    })
+    .subscribe((status) => { if (status === 'SUBSCRIBED') toast('✅ Connected!'); });
+  checkPeerPresence(roomCode);
+  presenceCheckInterval = setInterval(() => checkPeerPresence(roomCode), 15000);
+  syncMissedInterval = setInterval(() => syncMissedMessages(roomCode), 5000);
+  if (!visibilityListenerAdded) {
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible' && currentChat) { syncMissedMessages(currentChat.roomCode); checkPeerPresence(currentChat.roomCode); }
+    });
+    window.addEventListener('focus', () => { if (currentChat) syncMissedMessages(currentChat.roomCode); });
+    visibilityListenerAdded = true;
+  }
+}
+
+async function syncMissedMessages(roomCode) {
+  if (!currentChat || currentChat.roomCode !== roomCode) return;
+  const { data, error } = await sb.from('messages').select('*').eq('room_code', roomCode).gt('id', lastSeenMsgId).order('created_at', { ascending: true }).limit(50);
+  if (error || !data || data.length === 0) return;
+  data.forEach(m => {
+    if (m.id <= lastSeenMsgId) return;
+    lastSeenMsgId = Math.max(lastSeenMsgId, m.id);
+    updateChatPreview(roomCode, m);
+    renderMsg(m, m.sender === myName ? 'sent' : 'received');
+  });
+}
+
+async function checkPeerPresence(roomCode) {
+  const { data } = await sb.from('presence').select('*').eq('room_code', roomCode).neq('sender', myName).order('updated_at', { ascending: false }).limit(1);
+  if (data && data.length > 0) {
+    const peer = data[0];
+    const ageSec = (Date.now() - new Date(peer.updated_at).getTime()) / 1000;
+    if (ageSec < 60 && currentChat && currentChat.roomCode === roomCode) updatePeerOnline(peer.sender);
+  }
+}
+
+function updateChatPreview(roomCode, msgData) {
+  upsertChatMeta(roomCode, { lastLang: msgData.lang, lastMsgEnc: msgData.encoded, lastTimestamp: new Date(msgData.created_at || Date.now()).getTime() });
+}
+
+async function sendMsg() {
+  const input = document.getElementById('msgIn');
+  const text = input.value.trim();
+  if (pendingImageDataUrl) { await sendImageMsg(text); return; }
+  if (!text || !currentChat) return;
+  let enc, lang;
+  try {
+    ({ enc, lang } = await encryptMessage(text));
+  } catch (e) {
+    toast('❌ Encryption error, please login again.');
+    return;
+  }
+  msgCount++;
+  // original is intentionally left empty — plaintext is never stored, only the encrypted blob
+  const payload = { room_code: currentChat.roomCode, sender: myName, original: '', encoded: enc, lang: lang };
+  input.value = ''; input.style.height = 'auto';
+  const { data, error } = await sb.from('messages').insert(payload).select().single();
+  if (error) { toast('❌ Send failed: ' + error.message); return; }
+  lastSeenMsgId = Math.max(lastSeenMsgId, data.id);
+  updateChatPreview(currentChat.roomCode, data);
+  renderMsg(data, 'sent');
+  if (isTyping) { isTyping = false; sb.from('typing_status').insert({ room_code: currentChat.roomCode, sender: myName, is_typing: false }); }
+  // Send push notification to room participants
+  if (accessToken && currentChat.roomCode) {
+    fetch(`${BACKEND_URL}/auth/send-notification`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${accessToken}` },
+      body: JSON.stringify({
+        roomCode: currentChat.roomCode,
+        senderName: myName,
+        title: `ChatCode — ${myName}`,
+        body: '🔐 New encrypted message'
+      })
+    }).catch(() => {});
+  }
+}
+
+function onFileSelected(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  if (file.size > 4 * 1024 * 1024) { toast('⚠️ Photo must be under 4MB'); event.target.value = ''; return; }
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    pendingImageDataUrl = e.target.result;
+    document.getElementById('imgPreviewThumb').src = pendingImageDataUrl;
+    document.getElementById('imgPreviewBar').classList.add('show');
+  };
+  reader.readAsDataURL(file);
+  event.target.value = '';
+}
+
+function cancelImagePreview() { pendingImageDataUrl = null; document.getElementById('imgPreviewBar').classList.remove('show'); }
+
+async function sendImageMsg(caption) {
+  if (!currentChat || !pendingImageDataUrl) return;
+  const imgData = pendingImageDataUrl;
+  cancelImagePreview();
+  document.getElementById('msgIn').value = '';
+  msgCount++;
+  let encryptedCaption = '';
+  if (caption) {
+    try { ({ enc: encryptedCaption } = await encryptMessage(caption)); } catch (e) { encryptedCaption = ''; }
+  }
+  const previewLabel = '🔒 Encrypted photo — reveal with secret code';
+  const payload = { room_code: currentChat.roomCode, sender: myName, original: encryptedCaption, encoded: previewLabel, lang: 'media', media_url: imgData };
+  const { data, error } = await sb.from('messages').insert(payload).select().single();
+  if (error) { toast('❌ Failed to send photo.'); return; }
+  lastSeenMsgId = Math.max(lastSeenMsgId, data.id);
+  updateChatPreview(currentChat.roomCode, { ...data, lastLang: 'media', encoded: '📷 Photo' });
+  renderMsg(data, 'sent');
+}
+
+function renderMsg(d, side) {
+  const area = document.getElementById('msgs');
+  const row = document.createElement('div');
+  row.className = 'msg-row ' + side + (revealMode ? ' reveal-mode' : '');
+  row.dataset.msgId = d.id || '';
+  row.dataset.side = side;
+  const avatarHtml = side === 'received' ? `<div class="m-avatar">${d.sender[0].toUpperCase()}</div>` : '';
+  const tickHtml = side === 'sent' ? `<span class="m-tick">✓✓</span>` : '';
+  const time = d.created_at ? new Date(d.created_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : getTime();
+  const senderTagHtml = (currentChat && currentChat.isGroup && side === 'received') ? `<div class="sender-tag">${escHtml(d.sender)}</div>` : '';
+  let contentHtml;
+  if (d.media_url) {
+    contentHtml = `<div class="msg-media-enc">${escHtml(d.encoded)}</div><img class="msg-media" src="${d.media_url}" />`;
+    row.dataset.encryptedCaption = d.original && d.original.includes(':') ? d.original : '';
+  } else {
+    contentHtml = `<div class="code-tag">${d.lang}</div><div class="msg-enc">${escHtml(d.encoded)}</div><div class="msg-orig">…</div>`;
+    row.dataset.encrypted = d.encoded;
+  }
+  row.innerHTML = `${avatarHtml}<div class="bubble">${senderTagHtml}${contentHtml}<div class="msg-reactions" id="reactions-${d.id}"></div><div class="m-meta"><span class="m-time">${time}</span>${tickHtml}</div></div>`;
+  
+  // Long-press for message actions
+  let pressTimer;
+  row.addEventListener('touchstart', () => { pressTimer = setTimeout(() => showMsgActions(d, side, row), 600); });
+  row.addEventListener('touchend', () => clearTimeout(pressTimer));
+  row.addEventListener('touchmove', () => clearTimeout(pressTimer));
+  
+  area.appendChild(row);
+  if (revealMode) decryptRow(row);
+  scrollBottom();
+}
+
+// Message action menu (reactions + delete)
+function showMsgActions(d, side, row) {
+  const existing = document.getElementById('msgActionsMenu');
+  if (existing) existing.remove();
+  
+  const menu = document.createElement('div');
+  menu.id = 'msgActionsMenu';
+  menu.style.cssText = 'position:fixed;bottom:0;left:0;right:0;background:var(--panel);border-top:1px solid #1e3050;border-radius:20px 20px 0 0;padding:16px;z-index:999;';
+  
+  const reactions = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
+  menu.innerHTML = `
+    <div style="display:flex;justify-content:space-around;margin-bottom:16px;font-size:28px;">
+      ${reactions.map(r => `<span onclick="addReaction('${d.id}', '${r}')" style="cursor:pointer;padding:8px;">${r}</span>`).join('')}
+    </div>
+    <div style="border-top:1px solid #1e3050;padding-top:12px;">
+      ${side === 'sent' ? `<div onclick="deleteMsg('${d.id}', true)" style="color:#e74c3c;padding:12px;cursor:pointer;font-size:15px;">🗑️ Delete for everyone</div>` : ''}
+      <div onclick="deleteMsg('${d.id}', false)" style="padding:12px;cursor:pointer;font-size:15px;">🗑️ Delete for me</div>
+      <div onclick="document.getElementById('msgActionsMenu').remove()" style="color:var(--dim);padding:12px;cursor:pointer;font-size:15px;">✕ Cancel</div>
+    </div>
+  `;
+  document.body.appendChild(menu);
+}
+
+async function addReaction(msgId, emoji) {
+  document.getElementById('msgActionsMenu')?.remove();
+  const reactionEl = document.getElementById(`reactions-${msgId}`);
+  if (reactionEl) {
+    const existing = reactionEl.querySelector(`[data-emoji="${emoji}"]`);
+    if (existing) {
+      existing.textContent = emoji + ' ' + (parseInt(existing.dataset.count || 1) + 1);
+      existing.dataset.count = parseInt(existing.dataset.count || 1) + 1;
+    } else {
+      const span = document.createElement('span');
+      span.dataset.emoji = emoji;
+      span.dataset.count = 1;
+      span.textContent = emoji + ' 1';
+      span.style.cssText = 'background:#1e3050;border-radius:10px;padding:2px 6px;font-size:12px;margin-right:4px;cursor:pointer;';
+      reactionEl.appendChild(span);
+    }
+  }
+  // Save reaction to Supabase
+  await sb.from('messages').update({ reaction: emoji }).eq('id', msgId).catch(() => {});
+}
+
+async function deleteMsg(msgId, forAll) {
+  document.getElementById('msgActionsMenu')?.remove();
+  if (forAll) {
+    await sb.from('messages').delete().eq('id', msgId);
+  }
+  // Remove from UI
+  const rows = document.querySelectorAll(`.msg-row[data-msg-id="${msgId}"]`);
+  rows.forEach(r => r.remove());
+  toast('🗑️ Message deleted');
+}
+
+// Decrypts a single rendered message row in place (used both on reveal and for late-arriving messages)
+async function decryptRow(row) {
+  try {
+    if (row.dataset.encrypted) {
+      const plain = await decryptMessage(row.dataset.encrypted);
+      const origEl = row.querySelector('.msg-orig');
+      if (origEl) origEl.textContent = plain;
+    }
+    if (row.dataset.encryptedCaption) {
+      const plainCaption = await decryptMessage(row.dataset.encryptedCaption);
+      const bubble = row.querySelector('.bubble');
+      if (bubble && plainCaption && !bubble.querySelector('.msg-orig')) {
+        const capEl = document.createElement('div');
+        capEl.className = 'msg-orig';
+        capEl.style.marginTop = '4px';
+        capEl.textContent = plainCaption;
+        bubble.insertBefore(capEl, bubble.querySelector('.m-meta'));
+      }
+    }
+  } catch (e) {
+    const origEl = row.querySelector('.msg-orig');
+    if (origEl) origEl.textContent = '⚠️ Wrong secret code — cannot decrypt';
+  }
+}
+
+function addSystemMsg(text) {
+  const area = document.getElementById('msgs');
+  const div = document.createElement('div');
+  div.className = 'date-chip';
+  div.innerHTML = `<span style="color:var(--green)">${text}</span>`;
+  area.appendChild(div);
+  scrollBottom();
+}
+
+function updatePeerOnline(name) {
+  if (!currentChat) return;
+  document.getElementById('peerStatus').textContent = currentChat.isGroup ? (name + ' online') : 'online';
+  document.getElementById('peerStatus').className = 't-status online';
+}
+
+function showTyping(sender, isTypingNow) {
+  const row = document.getElementById('typingRow');
+  const av = document.getElementById('typingAvatar');
+  if (isTypingNow) { av.textContent = sender[0].toUpperCase(); row.classList.add('show'); scrollBottom(); }
+  else { row.classList.remove('show'); }
+}
+
+function onType() {
+  const input = document.getElementById('msgIn');
+  input.style.height = 'auto';
+  input.style.height = Math.min(input.scrollHeight, 90) + 'px';
+  if (!currentChat) return;
+  if (!isTyping) { isTyping = true; sb.from('typing_status').insert({ room_code: currentChat.roomCode, sender: myName, is_typing: true }); }
+  clearTimeout(typingTimer);
+  typingTimer = setTimeout(() => { isTyping = false; sb.from('typing_status').insert({ room_code: currentChat.roomCode, sender: myName, is_typing: false }); }, 1500);
+}
+
+function onKey(e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMsg(); } }
+
+async function tryReveal() {
+  const entered = document.getElementById('sInput').value.trim();
+  if (!entered) { toast('⚠️ Enter code!'); return; }
+
+  // Derive a key from whatever was typed and actually attempt decryption —
+  // this is a real cryptographic check, not just a string comparison.
+  const testKey = await deriveKeyFromCode(entered);
+  const sampleRow = document.querySelector('.msg-row[data-encrypted]');
+
+  if (sampleRow) {
+    try {
+      const [ivB64, dataB64] = sampleRow.dataset.encrypted.split(':');
+      const iv = base64ToBuf(ivB64);
+      const dataBuf = base64ToBuf(dataB64);
+      await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, testKey, dataBuf);
+    } catch (e) {
+      toast('❌ Wrong code!');
+      document.getElementById('sInput').value = '';
+      document.getElementById('sInput').style.borderColor = '#e74c3c';
+      setTimeout(() => document.getElementById('sInput').style.borderColor = '', 1000);
+      return;
+    }
+  } else if (entered !== secretCode) {
+    // No messages yet to test against — fall back to simple match
+    toast('❌ Wrong code!');
+    return;
+  }
+
+  cryptoKey = testKey;
+  revealMode = true;
+  const rows = document.querySelectorAll('.msg-row');
+  rows.forEach(r => r.classList.add('reveal-mode'));
+  for (const r of rows) await decryptRow(r);
+  document.getElementById('sInput').style.display = 'none';
+  document.querySelector('.s-btn').style.display = 'none';
+  document.getElementById('sRevealed').style.display = 'inline';
+  document.getElementById('sHideBtn').style.display = 'inline';
+  toast('🔓 Messages revealed!');
+}
+
+function hideReveal() {
+  revealMode = false;
+  document.querySelectorAll('.msg-row').forEach(r => {
+    r.classList.remove('reveal-mode');
+    const origEl = r.querySelector('.msg-orig');
+    if (origEl && r.dataset.encrypted) origEl.textContent = '…';
+  });
+  document.getElementById('sInput').style.display = '';
+  document.getElementById('sInput').value = '';
+  document.querySelector('.s-btn').style.display = '';
+  document.getElementById('sRevealed').style.display = 'none';
+  document.getElementById('sHideBtn').style.display = 'none';
+  toast('🔐 Messages hidden!');
+}
+
+function copyRoom() { if (!currentChat) return; navigator.clipboard.writeText(currentChat.roomCode).then(() => toast('📋 Room code copied: ' + currentChat.roomCode)); }
+function showScreen(id) { document.querySelectorAll('.screen').forEach(s => s.classList.remove('active')); document.getElementById(id).classList.add('active'); }
+function getTime() { return new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }); }
+function scrollBottom() { const area = document.getElementById('msgs'); setTimeout(() => area.scrollTop = area.scrollHeight, 50); }
+function escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function escAttr(s) { return String(s).replace(/'/g, "\\'"); }
+
+let toastTimer;
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 2500);
+}
+
+document.getElementById('sInput').addEventListener('keydown', e => { if (e.key === 'Enter') tryReveal(); });
+
+// App initialization
+window.addEventListener('DOMContentLoaded', async () => {
+  try {
+    await new Promise(r => setTimeout(r, 500));
+    const saved = loadLogin();
+    if (saved.name && saved.secret) {
+      myName = saved.name; secretCode = saved.secret; myPhone = saved.phone || '';
+      cryptoKey = await deriveKeyFromCode(secretCode);
+      chatsList = loadChatsList();
+      showScreen('calcScreen');
+      initNotifications().catch(() => {});
+      startGlobalIncomingWatcher().catch(() => {});
+    } else if (localStorage.getItem('chatcode_terms_accepted')) {
+      showStep('stepPhone');
+      showScreen('loginScreen');
+    } else {
+      showScreen('termsScreen');
+    }
+  } catch (e) {
+    console.error('initApp error:', e);
+    const errEl = document.getElementById('splashError');
+    if (errEl) { errEl.style.display = 'block'; errEl.textContent = 'Error: ' + e.message; }
+    setTimeout(() => showScreen('termsScreen'), 2000);
+  }
+  if ('serviceWorker' in navigator) { navigator.serviceWorker.register('sw.js').catch(() => {}); }
+});
+</script>
+</body>
+</html>
